@@ -11,8 +11,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TreeAPI.Context;
 using TreeAPI.Exceptions;
+using TreeAPI.Extensions;
 
-namespace YourAppName
+namespace TreeAPI
 {
 	public class Startup
 	{
@@ -26,56 +27,14 @@ namespace YourAppName
 		public void ConfigureServices(IServiceCollection services)
 		{
 			services.AddControllers()
-					.AddNewtonsoftJson();
+				.AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = null);
 
 			// Configure PostgreSQL connection
 			var connectionString = Configuration.GetConnectionString("DefaultConnection");
 			services.AddDbContext<NodesDbContext>(options => options.UseNpgsql(connectionString));
 
 			// Register exception handling middleware
-			services.AddExceptionHandler(options =>
-			{
-				options.ExceptionHandler = async context =>
-				{
-					var exceptionFeature = context.Features.Get<IExceptionHandlerFeature>();
-					var exception = exceptionFeature.Error;
-
-					var eventId = Guid.NewGuid().ToString();
-					var message = exception.Message;
-
-					var logger = context.RequestServices.GetRequiredService<ILogger<Startup>>();
-					logger.LogError(exception, $"An unhandled exception occurred with the event ID: {eventId}");
-
-					if (exception is SecureException)
-					{
-						context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-						context.Response.ContentType = "application/json";
-
-						await context.Response.WriteAsync(
-							new
-							{
-								type = exception.GetType().Name,
-								id = eventId,
-								data = new { message }
-							}.ToString()
-						);
-					}
-					else
-					{
-						context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-						context.Response.ContentType = "application/json";
-
-						await context.Response.WriteAsync(
-							new
-							{
-								type = "Exception",
-								id = eventId,
-								data = new { message = $"Internal server error ID = {eventId}" }
-							}.ToString()
-						);
-					}
-				};
-			});
+			services.UseCustomExceptionHandler();
 
 			// Register Swagger generator
 			services.AddSwaggerGen();

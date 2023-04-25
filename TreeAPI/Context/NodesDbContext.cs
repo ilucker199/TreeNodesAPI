@@ -17,6 +17,10 @@ namespace TreeAPI.Context
 				.HasOne(n => n.Parent)
 				.WithMany(n => n.Children)
 				.HasForeignKey(n => n.ParentId);
+
+			modelBuilder.Entity<Node>()
+				.Property(n => n.Name)
+				.HasDefaultValue("NodeName");
 		}
 	}
 }
